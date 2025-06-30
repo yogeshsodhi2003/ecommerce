@@ -1,48 +1,52 @@
 
 import { PrismaClient } from '../src/generated/prisma/index.js';
-import { faker } from '@faker-js/faker';
+import fs from 'fs';
+import slugify from 'slugify';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  // Clean existing data
-  await prisma.orderItem.deleteMany();
-  await prisma.order.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.category.deleteMany();
+async function seedAmazonProducts() {
+  const raw = fs.readFileSync('./data/amazon-products.json', 'utf-8');
+  const data = JSON.parse(raw); // assuming it's an array
 
-  // Create some base categories
-  const categories = ['Electronics', 'Fashion', 'Home', 'Toys', 'Books'];
-  const categoryMap: Record<string, string> = {};
+  await prisma.product.deleteMany(); // clear fake data
 
-  for (const name of categories) {
-    const cat = await prisma.category.create({ data: { name } });
-    categoryMap[name] = cat.id;
-  }
-
-  // Create 100 random products
-  const products = Array.from({ length: 100 }).map(() => {
-    const categoryName = faker.helpers.arrayElement(categories);
-    return {
-      title: faker.commerce.productName(),
-      slug: faker.helpers.slugify(faker.commerce.productName()).toLowerCase(),
-      description: faker.commerce.productDescription(),
-      price: parseFloat(faker.commerce.price({ min: 10, max: 999, dec: 2 })),
-      images: [faker.image.urlLoremFlickr({ category: 'product' })],
-      categoryId: categoryMap[categoryName],
-    };
-  });
-
-  await prisma.product.createMany({
-    data: products,
-  });
-
-  console.log('✅ Seeded 100 fake products successfully');
+  function createUniqueSlug(title: string, index: number) {
+  const base = slugify(title, { lower: true, strict: true });
+  return `${base}-${index}`;
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+for (let i = 0; i < data.length; i++) {
+  const item = data[i];
+  if (!item.title || !item.final_price || !item.image_url) continue;
+
+  try {
+    await prisma.product.create({
+      data: {
+        title: item.title,
+        slug: createUniqueSlug(item.title, i), // 🧠 make slug unique
+        description: item.description || 'No description available.',
+        price: parseFloat(item.final_price.replace(/"/g, '')) || 0,
+        currency: item.currency || 'USD',
+        inStock: item.availability === 'In Stock',
+        image: item.image_url,
+        images: [item.image_url],
+        rating: item.rating || 0,
+        reviewCount: item.reviews_count || 0,
+        asin: item.asin,
+        brand: item.brand || 'Unknown',
+        categories: JSON.parse(item.categories || '[]'),
+        sourceUrl: item.url,
+      },
+    });
+  } catch (err) {
+    console.warn(`❌ Skipping duplicate or bad product at index ${i}: ${item.title}`);
+  }
+}
+
+
+  console.log('✅ Seeded real Amazon product data');
+}
+
+seedAmazonProducts();
+
