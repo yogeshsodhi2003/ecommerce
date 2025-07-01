@@ -1,27 +1,31 @@
 // src/app/products/page.tsx
-'use client';
+"use client";
 
-import Image from 'next/image';
-import Link from 'next/link';
-import { useQuery, gql } from '@apollo/client';
+import Image from "next/image";
+import Link from "next/link";
+import { useQuery, gql } from "@apollo/client";
 
 const GET_PRODUCTS = gql`
-  query GetProducts {
-    products {
+  query GetProducts($limit: Int) {
+    products(limit: $limit) {
       id
       title
       slug
       price
-      image
+      images
     }
   }
 `;
-
+const limit = 100;
 export default function ProductsPage() {
-  const { data, loading, error } = useQuery(GET_PRODUCTS);
+  console.log(limit)
+  const { data, loading, error } = useQuery(GET_PRODUCTS,{
+    variables: { limit },
+  });
 
   if (loading) return <p className="text-center p-8">Loading...</p>;
-  if (error) return <p className="text-center text-red-500">Error: {error.message}</p>;
+  if (error)
+    return <p className="text-center text-red-500">Error: {error.message}</p>;
 
   const products = data.products;
 
@@ -37,15 +41,19 @@ export default function ProductsPage() {
             className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
           >
             <div className="relative aspect-square">
-              <Image
-                src={product.image}
-                alt={product.title}
-                fill
-                className="object-cover"
-              />
+              {product.images?.length > 0 && (
+                <Image
+                  src={product.images[0]}
+                  alt={product.title}
+                  fill
+                  className="object-cover"
+                />
+              )}
             </div>
             <div className="p-4">
-              <h2 className="font-semibold text-lg line-clamp-2">{product.title}</h2>
+              <h2 className="font-semibold text-lg line-clamp-2">
+                {product.title}
+              </h2>
               <p className="text-gray-500 mt-1">${product.price.toFixed(2)}</p>
             </div>
           </Link>

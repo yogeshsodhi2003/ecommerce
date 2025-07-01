@@ -8,10 +8,17 @@ const prisma = new PrismaClient();
 
 const resolvers = {
   Query: {
-    products: async () => {
-      return prisma.product.findMany();
+    products: async (args: { limit?: number }) => {
+      const limit = args?.limit ?? 50; // default if not provided
+      return prisma.product.findMany({
+        take: limit,
+      });
     },
-    getProductBySlug: async (_ : unknown, { slug }: {slug: string}, { prisma }: {prisma : PrismaClient} ) => {
+    getProductBySlug: async (
+      _: unknown,
+      { slug }: { slug: string },
+      { prisma }: { prisma: PrismaClient }
+    ) => {
       try {
         const product = await prisma.product.findUnique({ where: { slug } });
         if (!product) throw new Error("Product not found");
