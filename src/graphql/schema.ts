@@ -7,15 +7,12 @@ export const typeDefs = gql`
     slug: String!
     description: String!
     price: Float!
-
     categories: [String!]!
     image: String!
   }
 
   type Query {
     products: [Product!]!
+    getProductBySlug(slug: String!): Product
   }
-  type Query {
-   getProductBySlug(slug: String!): Product
-}
 `;
